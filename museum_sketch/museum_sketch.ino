@@ -20,22 +20,38 @@
 #  Boston, MA 02110-1301, USA.
 */
 
+#include <SharpIR.h>
+
+//PINOUT
 const int ledPin = 53;
 const int pingPin = 7;
 const int buttonPin = 6;
+const int irPin = 11;
 
-float maxThreshold = 0.5 ;
-float minThreshold = 0.1 ;
-long minDistance = 350;
-unsigned int population = 500; 
-unsigned int incr = 50;
-unsigned int decr = 1;
+//HARDCODED
+unsigned int maxThreshold = 9000 ;
+unsigned int minThreshold = 1000 ;
+unsigned int population = 10000; 
+
+//DEFAULT
+unsigned int minDistance = 120;
+unsigned int timeUp     = 500;
+unsigned int timeDown   = 5000;
+unsigned int frequency  = 10;
+boolean debug          	= 0;
+boolean irEnable	= 1;
+
+
+//VARS
+unsigned int periodDelay;
+unsigned int periodLoop;
+unsigned int incr;
+unsigned int decr;
 
 long dist;
-unsigned int goodValues = 1;
-boolean hitThreshold = false;
-boolean canSendTrack = false;
-float meanValue;
+unsigned int goodValues;
+boolean hitThreshold;
+boolean canSendTrack;
 
 void setup() {
   // initialize serial:
@@ -43,70 +59,84 @@ void setup() {
   Serial.println("START");
   Serial.flush();
   
+  setupVars();
+  
   // set pinout
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
   pinMode(buttonPin, INPUT);
   attachInterrupt(buttonPin, sendTrack, RISING);
+  
+  Serial.flush();
 }
 
 void loop() {
   
-  while ( Serial.available() == 6 ) 
-  {  
-    maxThreshold =   (float)((unsigned int)Serial.read()) / 10;  
-    minThreshold =   (float)((unsigned int)Serial.read()) / 10;
-    minDistance =    (unsigned int)Serial.read() * 10;
-    population =     (unsigned int)Serial.read() * 10;
-    incr = 	     (unsigned int)Serial.read();
-    decr =           (unsigned int)Serial.read();
+  //int lastMillis = millis();
+  
+  if ( Serial.available() == 5 ) 
+  { 
     
+    unsigned int timeUp_ =      (unsigned int)Serial.read() * 100 ;  
+    unsigned int timeDown_ =    (unsigned int)Serial.read() * 1000 ;
+    unsigned int minDistance_ = (unsigned int)Serial.read() ;
+    unsigned int frequency_ =   (unsigned int)Serial.read() ;
+    bool irEnable_ =            (bool)Serial.read();
+   
     digitalWrite(ledPin, HIGH);
     delay(1000);
     digitalWrite(ledPin, LOW);
 
+    Serial.println(timeUp_);
+    Serial.println(timeDown_);
+    Serial.println(minDistance_);
+    Serial.println(frequency_);
+    Serial.println(irEnable_);
+
+    timeUp=      timeUp_?timeUp_:timeUp;
+    timeDown=    timeDown_?timeDown_:timeDown;
+    minDistance= minDistance_?minDistance_:minDistance;
+    frequency=   frequency_?frequency_:frequency;
+    irEnable=    irEnable_;
+
     //reset
-    dist = 500 ;
-    goodValues = 1;
-    meanValue = 0 ;
-    hitThreshold = false;
-    canSendTrack = false;
-    
-    Serial.println(maxThreshold);
-    Serial.println(minThreshold);
-    Serial.println(minDistance);
-    Serial.println(population);
-    Serial.println(decr);
-    Serial.println(incr);
-    
+    setupVars();
+   
+    Serial.flush();
   }
   
   if ( canSendTrack ) 
   {
     Serial.write("t");
-    delay(1000);
+    delay(100);
     canSendTrack = false;
   }
   
   dist = distancePing();
-  goodValues = updateValues( dist, goodValues );
-  //Serial.println(goodValues);
-  meanValue = calcMeanValue( goodValues );
   
-  if ( meanValue > maxThreshold ){
+  if(debug){
+    Serial.print(dist);
+  }
+  
+  goodValues = updateValues( dist, goodValues );
+  
+  if ( goodValues > maxThreshold ){
     if ( hitThreshold != true){
       sendNoise();
       hitThreshold = true;
       digitalWrite(ledPin, HIGH);
     }
   } else 
-      if ( meanValue < minThreshold ){
+      if ( goodValues < minThreshold ){
         hitThreshold = false;
         digitalWrite(ledPin, LOW);
       }
-  delay(5);
-}  
- 
+  
+  //Serial.println(millis() - lastMillis);
+  
+  delay(periodDelay);
+  
+} 
 
 long microsecondsToCentimeters(long microseconds)
 {
@@ -124,24 +154,30 @@ void sendTrack()
 void sendNoise()
 {
    Serial.write("n"); 
+   delay(100);
 }
 
 long distancePing()
 {
-  pinMode(pingPin, OUTPUT);
-  digitalWrite(pingPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(pingPin, HIGH);
-  delayMicroseconds(5);
-  digitalWrite(pingPin, LOW);
-  
-  pinMode(pingPin, INPUT);
-  long duration = pulseIn(pingPin, HIGH);
-  
-  return microsecondsToCentimeters(duration);
+  if (irEnable) {
+    SharpIR sharp(irPin, 15, 93, 20150);
+    return (long)sharp.distance();
+  }else{
+    pinMode(pingPin, OUTPUT);
+    digitalWrite(pingPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(pingPin, HIGH);
+    delayMicroseconds(5);
+    digitalWrite(pingPin, LOW);
+    
+    pinMode(pingPin, INPUT);
+    long duration = pulseIn(pingPin, HIGH);
+    
+    return microsecondsToCentimeters(duration);
+  }
 }
 
-unsigned int updateValues( long dist, unsigned int values )
+unsigned int updateValues( long dist, float values )
 {
   if ( dist < minDistance ) 
   {
@@ -153,7 +189,44 @@ unsigned int updateValues( long dist, unsigned int values )
   return values;
 }  
 
-float calcMeanValue( int goodValues ) 
-{
-  return (float)goodValues / (float)population;
+void setupVars(){
+  
+  //SET 
+ 
+  frequency = (frequency<70)?frequency:70;
+  
+  periodDelay = (int)(( 1.0 / (float)frequency ) * 1000.0 ) ;
+  incr = (int)((float)maxThreshold / (float)timeUp) * ((float)periodDelay);
+  decr = (int)(( (float)(population - minThreshold) / (float)timeDown ) * (float)periodDelay);
+  
+  //RESET VAR
+
+  dist = 500;
+  goodValues = 1;
+  hitThreshold = false;
+  canSendTrack = false;
+  
+  if (debug) {
+    Serial.print("maxThreshold: ");
+    Serial.println(maxThreshold);
+    Serial.print("minThreshold: ");
+    Serial.println(minThreshold);
+    Serial.print("population: ");
+    Serial.println(population);
+    Serial.print("minDistance: ");
+    Serial.println(minDistance);
+    Serial.print("timeUp: ");
+    Serial.println(timeUp);
+    Serial.print("timeDown: ");
+    Serial.println(timeDown); 
+    Serial.print("frequency: ");
+    Serial.println(frequency);
+    Serial.print("periodDelay: ");
+    Serial.println(periodDelay);
+    Serial.print("incr: ");
+    Serial.println(incr);
+    Serial.print("decr: ");
+    Serial.println(decr);
+
+  }
 }

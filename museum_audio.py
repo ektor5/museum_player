@@ -39,16 +39,15 @@ serial_device='/dev/ttymxc3'
 serial_baud = 115200
 working_dir = "/opt/museum_player/audio"
 
-noise_probability=50
+noise_probability=100
 p_track=b't'
 p_noise=b'n'
 
-ard_maxThreshold = 0.5
-ard_minThreshold = 0.1 
 ard_minDistance = 350
-ard_population = 500
-ard_decr = 1
-ard_incr = 50
+ard_timeUp      = 1000
+ard_timeDown    = 60000
+ard_frequency   = 10
+ard_irEnable	= 0
 
 #CONFIG
 try:
@@ -65,15 +64,16 @@ try:
 
   noise_probability 	= int(config['player_setup']['noise_probability'])
   
-  ard_maxThreshold 	= float(config['calibration']['maxThreshold'])
-  ard_minThreshold 	= float(config['calibration']['minThreshold'])
-  ard_minDistance 	= int(config['calibration']['minDistance'])
-  ard_population 	= int(config['calibration']['population'])
-  ard_decr 		= int(config['calibration']['decr'])
-  ard_incr 		= int(config['calibration']['incr'])
+  p_track		= bytes(config['player_setup']['p_track'],"ascii")
+  p_noise		= bytes(config['player_setup']['p_noise'],"ascii")
   
-  p_track=b't'
-  p_noise=b'n'
+  ard_timeUp 		= float(config['calibration']['timeUp'])
+  ard_timeDown 		= float(config['calibration']['timeDown'])
+  ard_minDistance 	= int(config['calibration']['minDistance'])
+  ard_frequency 	= int(config['calibration']['frequency'])
+  ard_irEnable 		= int(config['calibration']['irEnable'])
+  
+
   
 except Exception as detail:
  print("WARNING: Cannot use config file " + configfile + ": " + str(detail.args[1]) )
@@ -93,26 +93,23 @@ print("Serial device " + serial_device + " opened")
   
 #CALIBRATION
 
-byte1 =int.to_bytes(int(ard_maxThreshold*10) , 1 , byteorder='big')
-byte2 =int.to_bytes(int(ard_minThreshold*10) , 1 , byteorder='big')
-byte3 =int.to_bytes(int(ard_minDistance/10) , 1 , byteorder='big')
-byte4 =int.to_bytes(int(ard_population/10) , 1 , byteorder='big') 
-byte5 =int.to_bytes(int(ard_incr) , 1 , byteorder='big')
-byte6 =int.to_bytes(int(ard_decr) , 1 , byteorder='big')
+byte1 =int.to_bytes(int(ard_timeUp/100) , 1 , byteorder='big')
+byte2 =int.to_bytes(int(ard_timeDown/1000) , 1 , byteorder='big')
+byte3 =int.to_bytes(int(ard_minDistance) , 1 , byteorder='big')
+byte4 =int.to_bytes(int(ard_frequency) , 1 , byteorder='big') 
+byte5 =int.to_bytes(int(ard_irEnable) , 1 , byteorder='big')
 
 #print( byte1 )
 #print( byte2 )
 #print( byte3 )
 #print( byte4 )
 #print( byte5 )
-#print( byte6 )
 
 ser.write( byte1 ) 
 ser.write( byte2 ) 
 ser.write( byte3 )
 ser.write( byte4 )
 ser.write( byte5 )
-ser.write( byte6 )
 
 #HOSTNAME
 try:
