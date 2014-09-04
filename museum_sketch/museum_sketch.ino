@@ -39,7 +39,7 @@ float meanValue;
 
 void setup() {
   // initialize serial:
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("START");
   Serial.flush();
   

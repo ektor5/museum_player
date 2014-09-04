@@ -36,7 +36,7 @@ configfile='/etc/museum_player.conf'
 
 serial_device='/dev/ttymxc3'
 
-serial_baud = 9600
+serial_baud = 115200
 working_dir = "/opt/museum_player/audio"
 
 noise_probability=50
