@@ -1,3 +1,4 @@
+#!/bin/sh
 
 #  This file is part of museum_player
 #
@@ -19,21 +20,16 @@
 #  Boston, MA 02110-1301, USA.
 #
 
-description	"Museum Video Player"
+# BOSSAC Flasher script
 
-start on filesystem or runlevel [2345]
-stop on runlevel [!2345]
+cd /opt/museum_player/sketch/
 
-respawn
-respawn limit 10 5
-umask 022
+# museum_audio dialogs with the serial, must stop
+service museum_audio stop
 
-console none
+# flash
+./bossac -e -w -v -p ttymxc3 -R -b ./museum_sketch.cpp.bin
 
-pre-start script
-    test -x /opt/museum_player/museum_video.sh || { stop; exit 0; }
-    cat /etc/hostname | grep -q "video" || { stop; exit 0; }
-    test -c /dev/null || { stop; exit 0; }
-end script
+# restart museum_audio
+service museum_audio start
 
-exec /opt/museum_player/museum_video.sh

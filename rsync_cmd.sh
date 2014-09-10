@@ -1,3 +1,4 @@
+#!/bin/sh
 
 #  This file is part of museum_player
 #
@@ -19,21 +20,62 @@
 #  Boston, MA 02110-1301, USA.
 #
 
-description	"Museum Video Player"
+#default
+HOST=192.168.0.57
+KEY="/home/ektor-5/.ssh/chiave-ssh"
 
-start on filesystem or runlevel [2345]
-stop on runlevel [!2345]
+error() {
+  #error($E_TEXT,$E_CODE)
 
-respawn
-respawn limit 10 5
-umask 022
+  local E_TEXT=$1
+  local E_CODE=$2
+  
+  [[ -z $E_CODE ]] && E_CODE=1
+  [[ -z $E_TEXT ]] || echo $E_TEXT
+  exit $E_CODE
+}
 
-console none
+usage(){
+cat <<EOF
+museum_player rsync script
+usage: $0 -h [HOST] -k [KEY] 
+EOF
 
-pre-start script
-    test -x /opt/museum_player/museum_video.sh || { stop; exit 0; }
-    cat /etc/hostname | grep -q "video" || { stop; exit 0; }
-    test -c /dev/null || { stop; exit 0; }
-end script
+exit
+}
 
-exec /opt/museum_player/museum_video.sh
+for arg 
+do
+shift
+  case $arg in
+  
+  "--help") usage ;;
+  
+  "-h")
+    #HOST 
+    [ -n "$1" ] || usage
+    HOST="$1" 
+    ;;
+    
+  "-k") 
+    #KEY
+    [ -n "$1" ] || usage
+    [ -e "$1" ] || error "Can't find key $1" 
+    KEY="$1" 
+    ;;
+  *) ;;
+  esac
+  
+done
+
+rsync 	-e "ssh -i $KEY" \
+	-vvLpr --delete-after --size-only  \
+	opt/museum_player/ root@$HOST:/opt/museum_player/ && 
+
+rsync 	-e "ssh -i $KEY" \
+	-vvLpr --size-only \
+	etc/ root@$HOST:/etc/ && 
+
+ssh -i "$KEY" root@$HOST "sync && 
+  service museum_audio restart ; 
+  service museum_video restart " 
