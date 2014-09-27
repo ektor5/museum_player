@@ -36,7 +36,7 @@ unsigned int buttonTimeDown 	 = 1500 ;
 
 //DEFAULT
 unsigned int minDistance 	= 150;
-unsigned int buttonTimeUp	= 200;
+unsigned int buttonTimeUp	= 150;
 unsigned int sensorTimeUp     	= 500;
 unsigned int sensorTimeDown   	= 5000;
 unsigned int frequency  	= 10;
