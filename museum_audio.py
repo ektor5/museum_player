@@ -67,8 +67,9 @@ try:
   p_track		= bytes(config['player_setup']['p_track'],"ascii")
   p_noise		= bytes(config['player_setup']['p_noise'],"ascii")
   
-  ard_timeUp 		= float(config['calibration']['timeUp'])
-  ard_timeDown 		= float(config['calibration']['timeDown'])
+  ard_buttonTimeUp	= float(config['calibration']['buttonTimeUp'])
+  ard_sensorTimeUp 	= float(config['calibration']['sensorTimeUp'])
+  ard_sensorTimeDown	= float(config['calibration']['sensorTimeDown'])
   ard_minDistance 	= int(config['calibration']['minDistance'])
   ard_frequency 	= int(config['calibration']['frequency'])
   ard_irEnable 		= int(config['calibration']['irEnable'])
@@ -93,11 +94,12 @@ print("Serial device " + serial_device + " opened")
   
 #CALIBRATION
 
-byte1 =int.to_bytes(int(ard_timeUp/100) , 1 , byteorder='big')
-byte2 =int.to_bytes(int(ard_timeDown/1000) , 1 , byteorder='big')
-byte3 =int.to_bytes(int(ard_minDistance) , 1 , byteorder='big')
-byte4 =int.to_bytes(int(ard_frequency) , 1 , byteorder='big') 
-byte5 =int.to_bytes(int(ard_irEnable) , 1 , byteorder='big')
+byte1 =int.to_bytes(int(ard_buttonTimeUp/100) , 1 , byteorder='big')
+byte2 =int.to_bytes(int(ard_sensorTimeUp/100) , 1 , byteorder='big')
+byte3 =int.to_bytes(int(ard_sensorTimeDown/1000) , 1 , byteorder='big')
+byte4 =int.to_bytes(int(ard_minDistance) , 1 , byteorder='big')
+byte5 =int.to_bytes(int(ard_frequency) , 1 , byteorder='big') 
+byte6 =int.to_bytes(int(ard_irEnable) , 1 , byteorder='big')
 
 #print( byte1 )
 #print( byte2 )
