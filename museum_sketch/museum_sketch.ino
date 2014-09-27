@@ -32,11 +32,11 @@ const int irPin = 11;
 unsigned int maxThreshold	 = 9000 ;
 unsigned int minThreshold	 = 1000 ;
 unsigned int population 	 = 10000 ;
-unsigned int buttonTimeUp	 = 200 ;
 unsigned int buttonTimeDown 	 = 1500 ;
 
 //DEFAULT
 unsigned int minDistance 	= 150;
+unsigned int buttonTimeUp	= 200;
 unsigned int sensorTimeUp     	= 500;
 unsigned int sensorTimeDown   	= 5000;
 unsigned int frequency  	= 10;
@@ -81,30 +81,33 @@ void loop() {
   
   //int lastMillis = millis();
   
-  if ( Serial.available() == 5 ) 
+  if ( Serial.available() == 6 ) 
   { 
     
+    unsigned int buttonTimeUp_	=     (unsigned int)Serial.read() * 100 ;
     unsigned int sensorTimeUp_ =      (unsigned int)Serial.read() * 100 ;  
     unsigned int sensorTimeDown_ =    (unsigned int)Serial.read() * 1000 ;
-    unsigned int minDistance_ = (unsigned int)Serial.read() ;
-    unsigned int frequency_ =   (unsigned int)Serial.read() ;
-    bool irEnable_ =            (bool)Serial.read();
+    unsigned int minDistance_ =       (unsigned int)Serial.read() ;
+    unsigned int frequency_ =         (unsigned int)Serial.read() ;
+    bool irEnable_ =                  (bool)Serial.read();
    
     digitalWrite(ledPin, HIGH);
     delay(1000);
     digitalWrite(ledPin, LOW);
 
+    Serial.println(buttonTimeUp_);
     Serial.println(sensorTimeUp_);
     Serial.println(sensorTimeDown_);
     Serial.println(minDistance_);
     Serial.println(frequency_);
     Serial.println(irEnable_);
 
-    sensorTimeUp=      sensorTimeUp_?sensorTimeUp_:sensorTimeUp;
-    sensorTimeDown=    sensorTimeDown_?sensorTimeDown_:sensorTimeDown;
-    minDistance= minDistance_?minDistance_:minDistance;
-    frequency=   frequency_?frequency_:frequency;
-    irEnable=    irEnable_;
+    buttonTimeUp =      buttonTimeUp_?buttonTimeUp_:buttonTimeUp;
+    sensorTimeUp =      sensorTimeUp_?sensorTimeUp_:sensorTimeUp;
+    sensorTimeDown =    sensorTimeDown_?sensorTimeDown_:sensorTimeDown;
+    minDistance =       minDistance_?minDistance_:minDistance;
+    frequency =         frequency_?frequency_:frequency;
+    irEnable =          irEnable_;
 
     //reset
     setupVars();
