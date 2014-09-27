@@ -29,29 +29,36 @@ const int buttonPin = 6;
 const int irPin = 11;
 
 //HARDCODED
-unsigned int maxThreshold = 9000 ;
-unsigned int minThreshold = 1000 ;
-unsigned int population = 10000; 
+unsigned int maxThreshold	 = 9000 ;
+unsigned int minThreshold	 = 1000 ;
+unsigned int population 	 = 10000 ;
+unsigned int buttonTimeUp	 = 200 ;
+unsigned int buttonTimeDown 	 = 1500 ;
 
 //DEFAULT
-unsigned int minDistance = 120;
-unsigned int timeUp     = 500;
-unsigned int timeDown   = 5000;
-unsigned int frequency  = 10;
-boolean debug          	= 0;
-boolean irEnable	= 1;
-
+unsigned int minDistance 	= 150;
+unsigned int sensorTimeUp     	= 500;
+unsigned int sensorTimeDown   	= 5000;
+unsigned int frequency  	= 10;
+boolean debug          		= 0;
+boolean irEnable		= 1;
 
 //VARS
 unsigned int periodDelay;
 unsigned int periodLoop;
-unsigned int incr;
-unsigned int decr;
+unsigned int sensorIncr;
+unsigned int sensorDecr;
+unsigned int buttonIncr;
+unsigned int buttonDecr;
 
-long dist;
-unsigned int goodValues;
-boolean hitThreshold;
-boolean canSendTrack;
+long sensorDist;
+unsigned int buttonGoodValues;
+unsigned int sensorGoodValues;
+
+boolean buttonState;
+boolean buttonHitThreshold;
+boolean sensorHitThreshold;
+boolean result;
 
 void setup() {
   // initialize serial:
@@ -65,7 +72,7 @@ void setup() {
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
   pinMode(buttonPin, INPUT);
-  attachInterrupt(buttonPin, sendTrack, RISING);
+  digitalWrite(buttonPin, HIGH);
   
   Serial.flush();
 }
@@ -77,8 +84,8 @@ void loop() {
   if ( Serial.available() == 5 ) 
   { 
     
-    unsigned int timeUp_ =      (unsigned int)Serial.read() * 100 ;  
-    unsigned int timeDown_ =    (unsigned int)Serial.read() * 1000 ;
+    unsigned int sensorTimeUp_ =      (unsigned int)Serial.read() * 100 ;  
+    unsigned int sensorTimeDown_ =    (unsigned int)Serial.read() * 1000 ;
     unsigned int minDistance_ = (unsigned int)Serial.read() ;
     unsigned int frequency_ =   (unsigned int)Serial.read() ;
     bool irEnable_ =            (bool)Serial.read();
@@ -87,14 +94,14 @@ void loop() {
     delay(1000);
     digitalWrite(ledPin, LOW);
 
-    Serial.println(timeUp_);
-    Serial.println(timeDown_);
+    Serial.println(sensorTimeUp_);
+    Serial.println(sensorTimeDown_);
     Serial.println(minDistance_);
     Serial.println(frequency_);
     Serial.println(irEnable_);
 
-    timeUp=      timeUp_?timeUp_:timeUp;
-    timeDown=    timeDown_?timeDown_:timeDown;
+    sensorTimeUp=      sensorTimeUp_?sensorTimeUp_:sensorTimeUp;
+    sensorTimeDown=    sensorTimeDown_?sensorTimeDown_:sensorTimeDown;
     minDistance= minDistance_?minDistance_:minDistance;
     frequency=   frequency_?frequency_:frequency;
     irEnable=    irEnable_;
@@ -105,30 +112,41 @@ void loop() {
     Serial.flush();
   }
   
-  if ( canSendTrack ) 
-  {
-    Serial.write("t");
-    delay(100);
-    canSendTrack = false;
-  }
+  //BUTTON
+  buttonState = ( digitalRead(buttonPin) == LOW )? true : false;
   
-  dist = distancePing();
+  buttonGoodValues = updateValues( buttonState, buttonGoodValues, buttonIncr, buttonDecr );
+  
+  if ( buttonGoodValues > maxThreshold ){
+    if ( buttonHitThreshold != true){
+      sendTrack();
+      buttonHitThreshold = true;
+    }
+  } else 
+      if ( buttonGoodValues < minThreshold ){
+        buttonHitThreshold = false;
+      }
+      
+  //SENSOR
+  sensorDist = distancePing();
   
   if(debug){
-    Serial.print(dist);
+    Serial.print(sensorDist);
   }
   
-  goodValues = updateValues( dist, goodValues );
+  bool result = (sensorDist < minDistance) ? true : false ;
   
-  if ( goodValues > maxThreshold ){
-    if ( hitThreshold != true){
+  sensorGoodValues = updateValues( result, sensorGoodValues, sensorIncr, sensorDecr );
+  
+  if ( sensorGoodValues > maxThreshold ){
+    if ( sensorHitThreshold != true){
       sendNoise();
-      hitThreshold = true;
+      sensorHitThreshold = true;
       digitalWrite(ledPin, HIGH);
     }
   } else 
-      if ( goodValues < minThreshold ){
-        hitThreshold = false;
+      if ( sensorGoodValues < minThreshold ){
+        sensorHitThreshold = false;
         digitalWrite(ledPin, LOW);
       }
   
@@ -147,8 +165,9 @@ long microsecondsToCentimeters(long microseconds)
 }
 
 void sendTrack()
-{
-   canSendTrack = true;
+{    
+   Serial.write("t");
+   delay(100);
 }
 
 void sendNoise()
@@ -177,9 +196,9 @@ long distancePing()
   }
 }
 
-unsigned int updateValues( long dist, float values )
+unsigned int updateValues( boolean result, float values, int incr, int decr )
 {
-  if ( dist < minDistance ) 
+  if ( result ) 
   {
     values = (values > population-incr ) ? population : (values+incr) ; 
   } else { 
@@ -196,15 +215,20 @@ void setupVars(){
   frequency = (frequency<70)?frequency:70;
   
   periodDelay = (int)(( 1.0 / (float)frequency ) * 1000.0 ) ;
-  incr = (int)((float)maxThreshold / (float)timeUp) * ((float)periodDelay);
-  decr = (int)(( (float)(population - minThreshold) / (float)timeDown ) * (float)periodDelay);
+
+  sensorIncr = (int)((float)maxThreshold / (float)sensorTimeUp) * ((float)periodDelay);
+  sensorDecr = (int)(( (float)(population - minThreshold) / (float)sensorTimeDown ) * (float)periodDelay);
+  buttonIncr = (int)((float)maxThreshold / (float)buttonTimeUp) * ((float)periodDelay);
+  buttonDecr = (int)(( (float)(population - minThreshold) / (float)buttonTimeDown ) * (float)periodDelay);
   
+ 
   //RESET VAR
 
-  dist = 500;
-  goodValues = 1;
-  hitThreshold = false;
-  canSendTrack = false;
+  sensorDist = 500;
+  sensorGoodValues = 1;  
+  buttonGoodValues = 1;
+  buttonHitThreshold = false;
+  sensorHitThreshold = false;
   
   if (debug) {
     Serial.print("maxThreshold: ");
@@ -215,18 +239,18 @@ void setupVars(){
     Serial.println(population);
     Serial.print("minDistance: ");
     Serial.println(minDistance);
-    Serial.print("timeUp: ");
-    Serial.println(timeUp);
-    Serial.print("timeDown: ");
-    Serial.println(timeDown); 
+    Serial.print("sensorTimeUp: ");
+    Serial.println(sensorTimeUp);
+    Serial.print("sensorTimeDown: ");
+    Serial.println(sensorTimeDown); 
     Serial.print("frequency: ");
     Serial.println(frequency);
     Serial.print("periodDelay: ");
     Serial.println(periodDelay);
-    Serial.print("incr: ");
-    Serial.println(incr);
-    Serial.print("decr: ");
-    Serial.println(decr);
+    Serial.print("sensorIncr: ");
+    Serial.println(sensorIncr);
+    Serial.print("sensorDecr: ");
+    Serial.println(sensorDecr);
 
   }
 }
