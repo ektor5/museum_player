@@ -28,10 +28,16 @@ DEFAULT="default"
 HOSTNAME=`cat /etc/hostname`
 
 declare -i STATION
-STATION=${HOSTNAME##*-}
+STATION=`echo $HOSTNAME | cut -d - -f 3`
 
 #set alpha to 0
-set_alpha fb0 0 
+
+if [ -x "$(which set_alpha 2>/dev/null)" ]
+then 
+  set_alpha fb0 0 
+else 
+  echo set_alpha is not available
+fi
 
 error() 
 {
@@ -40,17 +46,19 @@ error()
 }
 
 #FATAL
-if [[ ! -d $VIDEO_ROOT ]]
+if [ ! -d "$VIDEO_ROOT" ]
 then 
 	error "$VIDEO_ROOT does not exist"
 fi
 
-if [[ ! -x $PLAYER ]]  
+if [ ! -x "$PLAYER" ]  
 then 
 	error "I cannot execute $PLAYER"
 fi
 
 VIDEO_DIR="$VIDEO_ROOT/$STATION" 
+
+echo "Trying $VIDEO_DIR"
 
 if [[ $STATION != 0 ]] && [[ -d "$VIDEO_DIR" ]] && [[ "$(ls -A $VIDEO_DIR/*)" ]]
 then
@@ -64,11 +72,14 @@ then
 	error "No file available"
 fi
 
+echo "Using video folder $VIDEO_DIR" 
+
 while [ 1 ]
 do
 	for i in $VIDEO_DIR/*
 	do
-		$PLAYER playbin2 uri=file://$i 
+		echo "Playing video $i"
+		$PLAYER playbin2 uri=file://"$i" 
 	done
 done
 

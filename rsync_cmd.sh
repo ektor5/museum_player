@@ -69,11 +69,11 @@ shift
 done
 
 rsync 	-e "ssh -i $KEY" \
-	-vvLpr --delete-after --size-only  \
+	-vvtuLpr --delete-after  \
 	opt/museum_player/ root@$HOST:/opt/museum_player/ && 
 
 rsync 	-e "ssh -i $KEY" \
-	-vvLpr --size-only \
+	-vvtLpr --size-only \
 	etc/ root@$HOST:/etc/ && 
 
 ssh -i "$KEY" root@$HOST "sync && 
