@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.7
 
 #  This file is part of museum_player
 #
@@ -20,98 +20,21 @@
 #  Boston, MA 02110-1301, USA.
 #
 
-import serial   #not compatible with py2?
-#import daemon   #not compatible with py3
 import re
 import os
 import random
 import configparser
 
+import RPi.GPIO as GPIO  
+GPIO.setmode(GPIO.BCM)  
+GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_UP)  
 
-#SETUP
 print("Starting museum_audio...")
 
+#SETUP
 configfile='/etc/museum_player.conf'
-
-
-serial_device='/dev/ttymxc3'
-
-serial_baud = 115200
 working_dir = "/opt/museum_player/audio"
-
 noise_probability=100
-p_track=b't'
-p_noise=b'n'
-
-ard_minDistance = 350
-ard_timeUp      = 1000
-ard_timeDown    = 60000
-ard_frequency   = 10
-ard_irEnable	= 0
-
-#CONFIG
-try:
-  
-  config = configparser.ConfigParser()
-  
-  config.readfp( open(configfile) )
-  
-  
-  serial_device 	= config['player_setup']['serial_device']
-  serial_baud 		= int(config['player_setup']['serial_baud'])
-  
-  working_dir 		= config['player_setup']['working_dir']
-
-  noise_probability 	= int(config['player_setup']['noise_probability'])
-  
-  p_track		= bytes(config['player_setup']['p_track'],"ascii")
-  p_noise		= bytes(config['player_setup']['p_noise'],"ascii")
-  
-  ard_buttonTimeUp	= float(config['calibration']['buttonTimeUp'])
-  ard_sensorTimeUp 	= float(config['calibration']['sensorTimeUp'])
-  ard_sensorTimeDown	= float(config['calibration']['sensorTimeDown'])
-  ard_minDistance 	= int(config['calibration']['minDistance'])
-  ard_frequency 	= int(config['calibration']['frequency'])
-  ard_irEnable 		= int(config['calibration']['irEnable'])
-  
-
-  
-except Exception as detail:
- print("WARNING: Cannot use config file " + configfile + ": " + str(detail.args[1]) )
-
-#SERIAL  
-try:
-  ser = serial.Serial(serial_device, serial_baud)
-  ser.flushOutput()
-except FileNotFoundError as detail:
-  print("FATAL: Cannot find " + serial_device )
-  exit(1)
-except Exception as detail:
-  print("FATAL: " + str(detail.args[1]) )
-  exit(1)
-  
-print("Serial device " + serial_device + " opened")
-  
-#CALIBRATION
-
-byte1 =int.to_bytes(int(ard_buttonTimeUp/100) , 1 , byteorder='big')
-byte2 =int.to_bytes(int(ard_sensorTimeUp/100) , 1 , byteorder='big')
-byte3 =int.to_bytes(int(ard_sensorTimeDown/1000) , 1 , byteorder='big')
-byte4 =int.to_bytes(int(ard_minDistance) , 1 , byteorder='big')
-byte5 =int.to_bytes(int(ard_frequency) , 1 , byteorder='big') 
-byte6 =int.to_bytes(int(ard_irEnable) , 1 , byteorder='big')
-
-#print( byte1 )
-#print( byte2 )
-#print( byte3 )
-#print( byte4 )
-#print( byte5 )
-
-ser.write( byte1 ) 
-ser.write( byte2 ) 
-ser.write( byte3 )
-ser.write( byte4 )
-ser.write( byte5 )
 
 #HOSTNAME
 try:
@@ -156,7 +79,6 @@ if not checkdir(track_path):
     print("FATAL: No valid track directory found! Check dir structure!") 
     exit(1)
 
-
 #track load
 track_list = os.listdir(track_path)
 
@@ -181,28 +103,33 @@ print("Noise load: " + str(len(noise_list)) )
 #with daemon.DaemonContext(working_directory=position):
   
 def play(file):
-  os.system("aplay " + file + " >/dev/null")
+    os.system("aplay -D plughw:DEV=0 " + file + " >/dev/null")
 
 while 1:  
   # read a 1 byte packet, wait
-  packet = ser.read()
+  #packet = ser.read()
 
   #NOISE STATEMENT
-  if packet == p_noise:
-    print("Noise packet detected")
-    #choose if play a noise
-    if random.randint(0,100) < noise_probability:
-      #choose randomly
-      noise_chosed = random.choice(noise_list)
-      play(noise_path+"/"+noise_chosed)
+  # if packet == p_noise:
+  #   print("Noise packet detected")
+  #   #choose if play a noise
+  #   if random.randint(0,100) < noise_probability:
+  #     #choose randomly
+  #     noise_chosed = random.choice(noise_list)
+  #     play(noise_path+"/"+noise_chosed)
   
   #TRACK STATEMENT
-  if packet == p_track:
+  try:  
+    print ("Waiting for falling edge on port 23"  )
+    GPIO.wait_for_edge(23, GPIO.FALLING)  
+    print ("Falling edge detected."  )
+  
     print("Track packet detected")
     #play all tracks
     for track in track_list:
       play(track_path+"/"+track)
       
-  #don't listen to other messages    
-  ser.flushInput()
-  
+  except KeyboardInterrupt:  
+    GPIO.cleanup()       # clean up GPIO on CTRL+C exit  
+
+GPIO.cleanup()           # clean up GPIO on normal exit  

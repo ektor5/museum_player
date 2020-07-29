@@ -1,0 +1,14 @@
+[Unit]
+Description=Museum Player Audio
+ConditionHost=*audio*
+
+[Service]
+DynamicUser=1
+User=museum
+Group=audio
+SupplementaryGroups=gpio
+WorkingDirectory=/opt/museum_player/
+ExecStart=/usr/bin/python3 /opt/museum_player/museum_audio.py
+
+[Install]
+WantedBy=multi-user.target

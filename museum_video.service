@@ -1,0 +1,13 @@
+[Unit]
+Description=Museum Player Video
+ConditionHost=*video*
+
+[Service]
+DynamicUser=1
+User=museum
+Group=video
+WorkingDirectory=/opt/museum_player/
+ExecStart=/opt/museum_player/museum_video.sh
+
+[Install]
+WantedBy=multi-user.target
